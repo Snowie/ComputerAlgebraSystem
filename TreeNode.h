@@ -11,27 +11,29 @@
 
 using std::vector;
 using std::string;
+
 class Expression;
 
 class TreeNode {
 public:
-    virtual Expression * evaluate() = 0;
+    virtual Expression *evaluate() = 0;
+
     virtual ~TreeNode();
-    vector<TreeNode*> children;
+    virtual string toString() const = 0;
+
+    vector<TreeNode *> children;
 };
 
-/*class Plus: public TreeNode{
-public:
-    Plus(std::initializer_list<TreeNode*>);
-    Expression * evaluate() override;
-};*/
-
-class Expression: public TreeNode{
+class Expression : public TreeNode {
 public:
     Expression(string);
-    Expression * evaluate() override;
-    string toString() const;
+
+    Expression *evaluate() override;
+
+    string toString() const override;
+
 private:
     string contents;
 };
+
 #endif //COMPUTERALGEBRASYSTEM_TREENODE_H

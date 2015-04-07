@@ -4,9 +4,8 @@
 
 #include "TreeNode.h"
 
-TreeNode::~TreeNode(){
-    std::cout << "TreeNode Deconstructor" << std::endl;
-    for(int i = 0; i < children.size(); ++i){
+TreeNode::~TreeNode() {
+    for (int i = 0; i < children.size(); ++i) {
         delete children[i];
         children[i] = nullptr;
     }
@@ -20,6 +19,6 @@ string Expression::toString() const {
     return contents;
 }
 
-Expression* Expression::evaluate() {
+Expression *Expression::evaluate() {
     return this;
 }
