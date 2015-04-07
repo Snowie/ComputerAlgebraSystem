@@ -28,10 +28,20 @@ Expression *Operator::evaluate() {
     string s = "";
 
     for (int i = 0; i < children.size(); ++i)
-        if (i != children.size() - 1)
-            s += children[i]->evaluate()->toString() + " " + representation + " ";
-        else
-            s += children[i]->evaluate()->toString();
+        if (i != children.size() - 1){
+            Operator * opCheck = dynamic_cast<Operator*>(children[i]);
+            if(this->comparePrecedence(opCheck) == 1)
+                s += "("+children[i]->evaluate()->toString() + ") " + representation + " ";
+            else
+                s += children[i]->evaluate()->toString() + " " + representation + " ";
+        }
+        else{
+            Operator * opCheck = dynamic_cast<Operator*>(children[i]);
+            if(this->comparePrecedence(opCheck) == 1)
+                s += "("+children[i]->evaluate()->toString()+")";
+            else
+                s += children[i]->evaluate()->toString();
+        }
 
     return new Expression(s);
 }

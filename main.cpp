@@ -62,31 +62,47 @@ TreeNode * derive(unordered_map<string, Operator> operators, string wrt, TreeNod
             case '+':
             {
                 vector<TreeNode*> newChildren;
-                //derive(operators, wrt, opRoot);
-                for(auto c: root->children)
+
+                for(auto c: opRoot->children)
                     newChildren.push_back(derive(operators, wrt, c));
 
                 return operators.find("+")->second.setOperands(newChildren);
-                break;
             }
             case '-':
             {
                 vector<TreeNode*> newChildren;
-                //derive(operators, wrt, opRoot);
-                for(auto c: root->children)
+
+                for(auto c: opRoot->children)
                     newChildren.push_back(derive(operators, wrt, c));
 
                 return operators.find("-")->second.setOperands(newChildren);
-                break;
-                break;
             }
             case '*':
             {
-                break;
+                vector<TreeNode*> toPassAdd;
+
+                for(int j = 0; j < opRoot->children.size(); ++j){
+                    vector<TreeNode *> copyOfChildren = ShuntingYard(operators, opRoot->evaluate()->toString())->children;// = opRoot->children;
+                    vector<TreeNode *> toPassMult;
+                    for(int k = 0; k < opRoot->children.size(); ++k){
+                        if(k == j)
+                            toPassMult.push_back(derive(operators, wrt, copyOfChildren[k]));
+                        else
+                            toPassMult.push_back(copyOfChildren[k]);
+                    }
+                    toPassAdd.push_back(operators.find("*")->second.setOperands(toPassMult));
+                }
+                Operator * addOp = operators.find("+")->second.setOperands(toPassAdd);
+                return addOp;
             }
             case '/':
             {
-                break;
+                Operator * multOp1 = operators.find("*")->second.setOperands({derive(operators, wrt, opRoot->children[0]), opRoot->children[1]});
+                Operator * multOp2 = operators.find("*")->second.setOperands({opRoot->children[0], derive(operators, wrt, opRoot->children[1])});
+                Operator * subOp = operators.find("-")->second.setOperands({multOp1, multOp2});
+                Operator * powOp = operators.find("^")->second.setOperands({opRoot->children[1], new Expression("2")});
+                Operator * divOp = operators.find("/")->second.setOperands({subOp, powOp});
+                return divOp;
             }
             case '^':
             {
@@ -95,15 +111,12 @@ TreeNode * derive(unordered_map<string, Operator> operators, string wrt, TreeNod
                 Operator * newPower = operators.find("-")->second.setOperands( {new Expression(oldPower->toString()), new Expression("1")} );
                 Expression * newCoefficient = new Expression(oldPower->toString());
                 Operator * newPowerOp = operators.find("^")->second.setOperands( {new Expression(base->toString()), newPower} );
-                Operator * multOp = operators.find("*")->second.setOperands( {newCoefficient, newPowerOp} );
+                Operator * multOp = operators.find("*")->second.setOperands( {newCoefficient, newPowerOp, derive(operators, wrt, base)} );
                 return multOp;
-                //operators.find("*")->second.setOperands( {} )
-                //Operators.find('^')->second.setOperands({});
-                //break;
             }
         }
     }
-    //It's an expression
+        //It's an expression
     else {
         Expression * exRoot = dynamic_cast<Expression*>(root);
         if(isdigit(exRoot->toString()[0]))
@@ -127,7 +140,10 @@ int main() {
     operators.emplace("^", Operator(4, "^", true));
 
     //TreeNode *rootOfEquation = ShuntingYard(operators, "x^2 + 3*x");
-    TreeNode *rootOfEquation = ShuntingYard(operators, "x^2");
+    TreeNode *rootOfEquation = ShuntingYard(operators, "1/x^2");
+
+    //cout << rootOfEquation->toString() << endl;
+    //TreeNode *rootOfEquation = ShuntingYard(operators, "1/x^2");
     TreeNode * dRootOfEquation = derive(operators, "x", rootOfEquation);
 
     cout << "f(x) = " << rootOfEquation->evaluate()->toString() << endl;
