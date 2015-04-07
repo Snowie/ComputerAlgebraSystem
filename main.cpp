@@ -8,6 +8,9 @@
 using namespace std;
 
 stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Operator o) {
+    //cout << "In add node" << endl;
+    if(o.toString() == "(" || o.toString() == ")")
+        cout << "Problem" << endl;
     TreeNode * r = operand_stack.top();
     operand_stack.pop();
     TreeNode * l = operand_stack.top();
@@ -20,20 +23,38 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, string toParse
     stack<Operator> operator_stack;
     stack<TreeNode *> operand_stack;
 
-    TreeNode *root = nullptr;
-
     for (char c: toParse) {
-
         string s = "";
         s += c;
 
         if (s == " ")
             continue;
 
+        if(s == "(") {
+            operator_stack.push(Operator(9, "(", false));
+            continue;
+        }
+
+        if(s == ")"){
+            while(!operator_stack.empty()) {
+                Operator popped = operator_stack.top();
+                operator_stack.pop();
+                if(popped.toString() == "(") {
+                    break;
+                }
+                else {
+                    operand_stack = addNode(operand_stack, popped);
+                }
+            }
+            continue;
+        }
         if (operators.find(s) != operators.end()) {
             Operator * o1 = &operators.find(s)->second;
             Operator * o2 = nullptr;
-            while (!operator_stack.empty() && (o2 = &operators.find(operator_stack.top().toString())->second) && o2 != nullptr){
+            while (!operator_stack.empty() && (o2 = &operators.find(operator_stack.top().toString())->second)){
+                if(operators.find(operator_stack.top().toString()) == operators.end())
+                    break;
+
                 if((!o1->isRightAssociative() && 0 == o1->comparePrecedence(o2)) || o1->comparePrecedence(o2) < 0) {
                     operator_stack.pop();
                     operand_stack = addNode(operand_stack, *o2);
@@ -48,10 +69,15 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, string toParse
         }
     }
     while(!operator_stack.empty()) {
+        //cout << "Working op: " << operator_stack.top().toString() << endl;
         operand_stack = addNode(operand_stack, operator_stack.top());
         operator_stack.pop();
     }
-    return operand_stack.top();
+
+    if(!operand_stack.empty())
+        return operand_stack.top();
+    else
+        return new Expression("0");
 }
 
 TreeNode * derive(unordered_map<string, Operator> operators, string wrt, TreeNode * root) {
@@ -61,6 +87,7 @@ TreeNode * derive(unordered_map<string, Operator> operators, string wrt, TreeNod
         switch(opRoot->toString()[0]){
             case '+':
             {
+                //D/dx(a + b) = a' + b'
                 vector<TreeNode*> newChildren;
 
                 for(auto c: opRoot->children)
@@ -70,6 +97,7 @@ TreeNode * derive(unordered_map<string, Operator> operators, string wrt, TreeNod
             }
             case '-':
             {
+                //D/dx(a - b) = a' - b'
                 vector<TreeNode*> newChildren;
 
                 for(auto c: opRoot->children)
@@ -79,11 +107,15 @@ TreeNode * derive(unordered_map<string, Operator> operators, string wrt, TreeNod
             }
             case '*':
             {
+                //D/dx(ab) = a'b + ab'
                 vector<TreeNode*> toPassAdd;
 
                 for(int j = 0; j < opRoot->children.size(); ++j){
+                    //Safely get a copy of this tree
                     vector<TreeNode *> copyOfChildren = ShuntingYard(operators, opRoot->evaluate()->toString())->children;// = opRoot->children;
                     vector<TreeNode *> toPassMult;
+
+                    //Go through variable by variable in each of the terms and select which one to derive
                     for(int k = 0; k < opRoot->children.size(); ++k){
                         if(k == j)
                             toPassMult.push_back(derive(operators, wrt, copyOfChildren[k]));
@@ -97,26 +129,29 @@ TreeNode * derive(unordered_map<string, Operator> operators, string wrt, TreeNod
             }
             case '/':
             {
-                Operator * multOp1 = operators.find("*")->second.setOperands({derive(operators, wrt, opRoot->children[0]), opRoot->children[1]});
-                Operator * multOp2 = operators.find("*")->second.setOperands({opRoot->children[0], derive(operators, wrt, opRoot->children[1])});
-                Operator * subOp = operators.find("-")->second.setOperands({multOp1, multOp2});
-                Operator * powOp = operators.find("^")->second.setOperands({opRoot->children[1], new Expression("2")});
-                Operator * divOp = operators.find("/")->second.setOperands({subOp, powOp});
+                //D/dx(f(x)/g(x)) = (f'(x)g(x) - f(x)g'(x))/(g(x))^2
+                Operator * multOp1 = operators.find("*")->second.setOperands( {derive(operators, wrt, opRoot->children[0]), opRoot->children[1]} );
+                Operator * multOp2 = operators.find("*")->second.setOperands( {opRoot->children[0], derive(operators, wrt, opRoot->children[1])} );
+                Operator * subOp = operators.find("-")->second.setOperands( {multOp1, multOp2} );
+                Operator * powOp = operators.find("^")->second.setOperands( {opRoot->children[1], new Expression("2")} );
+                Operator * divOp = operators.find("/")->second.setOperands( {subOp, powOp} );
                 return divOp;
             }
             case '^':
             {
-                Expression * base = dynamic_cast<Expression*>(opRoot->children[0]);
-                Expression * oldPower = dynamic_cast<Expression*>(opRoot->children[1]);
-                Operator * newPower = operators.find("-")->second.setOperands( {new Expression(oldPower->toString()), new Expression("1")} );
-                Expression * newCoefficient = new Expression(oldPower->toString());
-                Operator * newPowerOp = operators.find("^")->second.setOperands( {new Expression(base->toString()), newPower} );
+                //D/dx(b^c) = c * b^(c - 1) * D/dx(b)
+                TreeNode * base = opRoot->children[0];
+                TreeNode * derivedBase = derive(operators, wrt, base);
+                TreeNode * oldExponent = opRoot->children[1];
+                Operator * newExponent = operators.find("-")->second.setOperands( {ShuntingYard(operators, oldExponent->evaluate()->toString()), new Expression("1")} );
+                TreeNode * newCoefficient = ShuntingYard(operators, oldExponent->toString());
+                Operator * newPowerOp = operators.find("^")->second.setOperands( {ShuntingYard(operators, base->evaluate()->toString()), newExponent} );
                 Operator * multOp = operators.find("*")->second.setOperands( {newCoefficient, newPowerOp, derive(operators, wrt, base)} );
                 return multOp;
             }
         }
     }
-        //It's an expression
+    //It's an expression
     else {
         Expression * exRoot = dynamic_cast<Expression*>(root);
         if(isdigit(exRoot->toString()[0]))
@@ -127,7 +162,8 @@ TreeNode * derive(unordered_map<string, Operator> operators, string wrt, TreeNod
 
         return new Expression("0");
     }
-    //return nullptr;
+    //Fail safely
+    return new Expression("0");
 }
 
 int main() {
@@ -139,14 +175,11 @@ int main() {
     operators.emplace("*", Operator(3, "*", false));
     operators.emplace("^", Operator(4, "^", true));
 
-    //TreeNode *rootOfEquation = ShuntingYard(operators, "x^2 + 3*x");
-    TreeNode *rootOfEquation = ShuntingYard(operators, "1/x^2");
-
-    //cout << rootOfEquation->toString() << endl;
-    //TreeNode *rootOfEquation = ShuntingYard(operators, "1/x^2");
-    TreeNode * dRootOfEquation = derive(operators, "x", rootOfEquation);
+    TreeNode * rootOfEquation = ShuntingYard(operators, "2 + (1 + x)^2");
 
     cout << "f(x) = " << rootOfEquation->evaluate()->toString() << endl;
+
+    TreeNode * dRootOfEquation = derive(operators, "x", rootOfEquation);
     cout << "f'(x) = " << ((dRootOfEquation == nullptr) ? "nullptr" : dRootOfEquation->evaluate()->toString()) << endl;
 
     return 0;

@@ -30,14 +30,16 @@ Expression *Operator::evaluate() {
     for (int i = 0; i < children.size(); ++i)
         if (i != children.size() - 1){
             Operator * opCheck = dynamic_cast<Operator*>(children[i]);
-            if(this->comparePrecedence(opCheck) == 1)
+
+            if(opCheck != nullptr && this->comparePrecedence(opCheck) == 1)
                 s += "("+children[i]->evaluate()->toString() + ") " + representation + " ";
             else
                 s += children[i]->evaluate()->toString() + " " + representation + " ";
         }
         else{
             Operator * opCheck = dynamic_cast<Operator*>(children[i]);
-            if(this->comparePrecedence(opCheck) == 1)
+
+            if(opCheck != nullptr && this->comparePrecedence(opCheck) == 1)
                 s += "("+children[i]->evaluate()->toString()+")";
             else
                 s += children[i]->evaluate()->toString();
@@ -57,10 +59,13 @@ bool Operator::isRightAssociative() const {
 int Operator::comparePrecedence(Operator *o) const {
     if (o == nullptr)
         return 0;
-    if (o->getPrecedence() > this->getPrecedence())
+    /*if (o->getPrecedence() > this->getPrecedence())
         return -1;
     if (o->getPrecedence() < this->getPrecedence())
-        return 1;
+        return 1;*/
+    return this->getPrecedence() > o->getPrecedence() ? 1 :
+           o->getPrecedence() == precedence ? 0 : -1;
+    std::cout << "This happened?" << std::endl;
     return 0;
 }
 
