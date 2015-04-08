@@ -31,7 +31,7 @@ Expression *Operator::evaluate() {
         if (i != children.size() - 1){
             Operator * opCheck = dynamic_cast<Operator*>(children[i]);
 
-            if(opCheck != nullptr && this->comparePrecedence(opCheck) == 1)
+            if(opCheck != nullptr && ((this->comparePrecedence(opCheck) == 0 && opCheck->isRightAssociative()) || this->comparePrecedence(opCheck) == 1))
                 s += "("+children[i]->evaluate()->toString() + ") " + representation + " ";
             else
                 s += children[i]->evaluate()->toString() + " " + representation + " ";
@@ -39,7 +39,7 @@ Expression *Operator::evaluate() {
         else{
             Operator * opCheck = dynamic_cast<Operator*>(children[i]);
 
-            if(opCheck != nullptr && this->comparePrecedence(opCheck) == 1)
+            if(opCheck != nullptr && ((this->comparePrecedence(opCheck) == 0 && opCheck->isRightAssociative()) || this->comparePrecedence(opCheck) == 1))
                 s += "("+children[i]->evaluate()->toString()+")";
             else
                 s += children[i]->evaluate()->toString();

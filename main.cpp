@@ -142,11 +142,14 @@ TreeNode * derive(unordered_map<string, Operator> operators, string wrt, TreeNod
                 //D/dx(b^c) = c * b^(c - 1) * D/dx(b)
                 TreeNode * base = opRoot->children[0];
                 TreeNode * derivedBase = derive(operators, wrt, base);
+
                 TreeNode * oldExponent = opRoot->children[1];
                 Operator * newExponent = operators.find("-")->second.setOperands( {ShuntingYard(operators, oldExponent->evaluate()->toString()), new Expression("1")} );
-                TreeNode * newCoefficient = ShuntingYard(operators, oldExponent->toString());
+
+                TreeNode * newCoefficient = ShuntingYard(operators, oldExponent->evaluate()->toString());
                 Operator * newPowerOp = operators.find("^")->second.setOperands( {ShuntingYard(operators, base->evaluate()->toString()), newExponent} );
-                Operator * multOp = operators.find("*")->second.setOperands( {newCoefficient, newPowerOp, derive(operators, wrt, base)} );
+
+                Operator * multOp = operators.find("*")->second.setOperands( {newCoefficient, newPowerOp, derivedBase} );
                 return multOp;
             }
         }
@@ -175,7 +178,7 @@ int main() {
     operators.emplace("*", Operator(3, "*", false));
     operators.emplace("^", Operator(4, "^", true));
 
-    TreeNode * rootOfEquation = ShuntingYard(operators, "2 + (1 + x)^2");
+    TreeNode * rootOfEquation = ShuntingYard(operators, "2/x^3 + 1/x^9 + (2 * (x^2))^(4)");
 
     cout << "f(x) = " << rootOfEquation->evaluate()->toString() << endl;
 
