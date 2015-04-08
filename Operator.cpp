@@ -10,13 +10,6 @@ Operator::Operator(int precedence, string symbol, bool isRightAssociative) {
     this->rightAssociative = isRightAssociative;
 }
 
-/*Operator::Operator(Operator& other, vector<TreeNode *> operands) {
-    this->precedence = other.getPrecedence();
-    this->representation = other.getRepresentation();
-    this->rightAssociative = other.isRightAssociative();
-    children = operands;
-}*/
-
 Operator::Operator(const Operator *const other, vector<TreeNode *> operands) {
     this->precedence = other->getPrecedence();
     this->representation = other->toString();
@@ -28,19 +21,21 @@ Expression *Operator::evaluate() {
     string s = "";
 
     for (int i = 0; i < children.size(); ++i)
-        if (i != children.size() - 1){
-            Operator * opCheck = dynamic_cast<Operator*>(children[i]);
+        if (i != children.size() - 1) {
+            Operator *opCheck = dynamic_cast<Operator *>(children[i]);
 
-            if(opCheck != nullptr && ((this->comparePrecedence(opCheck) == 0 && opCheck->isRightAssociative()) || this->comparePrecedence(opCheck) == 1))
-                s += "("+children[i]->evaluate()->toString() + ") " + representation + " ";
+            if (opCheck != nullptr && ((this->comparePrecedence(opCheck) == 0 && opCheck->isRightAssociative()) ||
+                                       this->comparePrecedence(opCheck) == 1))
+                s += "(" + children[i]->evaluate()->toString() + ") " + representation + " ";
             else
                 s += children[i]->evaluate()->toString() + " " + representation + " ";
         }
-        else{
-            Operator * opCheck = dynamic_cast<Operator*>(children[i]);
+        else {
+            Operator *opCheck = dynamic_cast<Operator *>(children[i]);
 
-            if(opCheck != nullptr && ((this->comparePrecedence(opCheck) == 0 && opCheck->isRightAssociative()) || this->comparePrecedence(opCheck) == 1))
-                s += "("+children[i]->evaluate()->toString()+")";
+            if (opCheck != nullptr && ((this->comparePrecedence(opCheck) == 0 && opCheck->isRightAssociative()) ||
+                                       this->comparePrecedence(opCheck) == 1))
+                s += "(" + children[i]->evaluate()->toString() + ")";
             else
                 s += children[i]->evaluate()->toString();
         }
@@ -59,13 +54,10 @@ bool Operator::isRightAssociative() const {
 int Operator::comparePrecedence(Operator *o) const {
     if (o == nullptr)
         return 0;
-    /*if (o->getPrecedence() > this->getPrecedence())
+    if (o->getPrecedence() > this->getPrecedence())
         return -1;
     if (o->getPrecedence() < this->getPrecedence())
-        return 1;*/
-    return this->getPrecedence() > o->getPrecedence() ? 1 :
-           o->getPrecedence() == precedence ? 0 : -1;
-    std::cout << "This happened?" << std::endl;
+        return 1;
     return 0;
 }
 

@@ -12,8 +12,6 @@ class Operator : public TreeNode {
 public:
     Operator(int, string, bool);
 
-    //Operator(Operator&, vector<TreeNode *>);
-
     Expression *evaluate() override;
 
     int getPrecedence() const;
@@ -22,7 +20,6 @@ public:
 
     int comparePrecedence(Operator *) const;
 
-    //Operator *setOperands(std::initializer_list<string>) const;
     Operator *setOperands(vector<TreeNode *>) const;
 
     string toString() const override;

@@ -19,6 +19,7 @@ public:
     virtual Expression *evaluate() = 0;
 
     virtual ~TreeNode();
+
     virtual string toString() const = 0;
 
     vector<TreeNode *> children;
