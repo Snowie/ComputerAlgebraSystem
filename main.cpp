@@ -1,7 +1,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <stack>
-
+#include <regex>
 #include "TreeNode.h"
 #include "Operator.h"
 
@@ -16,6 +16,16 @@ stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Operator o) {
     operand_stack.pop();
     operand_stack.push(o.setOperands({l, r}));
     return operand_stack;
+}
+
+//TODO: Fix this!
+vector<string> tokenize(string toTokenize) {
+    //std::regex r4("[0-9]", std::regex_constants::basic);
+    /*(?<=op)|(?=op)
+    [-+*^/()]*/
+    regex pattern("(?=[-+*^/()])");
+    sregex_token_iterator first{toTokenize.begin(), toTokenize.end(), pattern}, last;
+    return {first, last};
 }
 
 TreeNode *ShuntingYard(unordered_map<string, Operator> operators, string toParse) {
@@ -180,10 +190,17 @@ int main() {
 
     TreeNode *rootOfEquation = ShuntingYard(operators, "1/x^2");
 
-    cout << "f(x) = " << rootOfEquation->evaluate()->toString() << endl;
+    //cout << "f(x) = " << rootOfEquation->evaluate()->toString() << endl;
 
     TreeNode *dRootOfEquation = derive(operators, "x", rootOfEquation);
     cout << "f'(x) = " << ((dRootOfEquation == nullptr) ? "nullptr" : dRootOfEquation->evaluate()->toString()) << endl;
+
+    vector<string> tokenized = tokenize(dRootOfEquation->evaluate()->toString());
+
+    for(auto s: tokenized)
+        cout << s << endl;
+
+
 
     return 0;
 }
