@@ -88,6 +88,7 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, string toParse
         return new Expression("0");
 }
 
+//Returns a treenode that represents the derivative of the supplied function wrt 'wrt'
 TreeNode *derive(unordered_map<string, Operator> operators, string wrt, TreeNode *root) {
     //It's an operator or function
     if (!root->children.empty()) {
