@@ -98,7 +98,7 @@ TreeNode * deriveFunction(unordered_map<string, Operator> operators, unordered_m
         return operators.find("*")->second.setOperands(
                 {functions.find("cos")->second.setArguments(root->children), derive(operators, functions, wrt, root->children[0])});
     }
-    //D/dx(log(x)) = 1/(x) * x'
+    //D/dx(log(x)) = 1/x * x'
     if(root->toString() == "log") {
         Operator * divisionOperator = operators.find("/")->second.setOperands({new Expression("1"), root->children[0]});
         Operator * multiplyOperator = operators.find("*")->second.setOperands({divisionOperator, derive(operators, functions, wrt, root->children[0])});
@@ -233,19 +233,24 @@ int main() {
     functions.emplace("sec", Function("sec"));
     functions.emplace("log", Function("log"));
 
+    cout << "Testing expressions..." << endl;
     TreeNode *rootOfEquation = ShuntingYard(operators, "1/x^2");
-
-    //cout << "f(x) = " << rootOfEquation->evaluate()->toString() << endl;
-
+    cout << "f(x) = " << rootOfEquation->evaluate()->toString() << endl;
     TreeNode *dRootOfEquation = derive(operators, functions, "x", rootOfEquation);
     cout << "f'(x) = " << ((dRootOfEquation == nullptr) ? "nullptr" : dRootOfEquation->evaluate()->toString()) << endl;
 
-    if(dRootOfEquation != nullptr) {
-        vector<string> tokenized = tokenize(dRootOfEquation->evaluate()->toString());
+    cout << "\n\n\nTesting trig functions..." << endl;
 
-        for (auto s: tokenized)
-            cout << s << endl;
-    }
+    TreeNode * g = functions.find("tan")->second.setArguments({ShuntingYard(operators, "x^2")});
+    cout << "g(x) = " << g->evaluate()->toString() << endl;
+    TreeNode * gPrime = derive(operators, functions, "x", g);
+    cout << "g'(x) = " << ((gPrime == nullptr) ? "nullptr" : gPrime->evaluate()->toString()) << endl;
+
+    cout << "\n\n\nTesting composite functions..." << endl;
+    TreeNode * composite = functions.find("log")->second.setArguments({functions.find("sin")->second.setArguments({new Expression("x")})});
+    cout << "c(x) = " << composite->evaluate()->toString() << endl;
+    TreeNode * compositePrime = derive(operators, functions, "x", composite);
+    cout << "c'(x) = " << ((compositePrime == nullptr) ? "nullptr" : compositePrime->evaluate()->toString()) << endl;
 
 
     return 0;
