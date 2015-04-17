@@ -21,6 +21,7 @@ stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Operator o) {
 }
 
 //TODO: Fix this!
+//      Does C++ regex support lookaround?
 vector<string> tokenize(string toTokenize) {
     //std::regex r4("[0-9]", std::regex_constants::basic);
     /*(?<=op)|(?=op)
@@ -90,16 +91,31 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, string toParse
         return new Expression("0");
 }
 
-TreeNode * deriveFunction(unordered_map<string, Operator> operators, unordered_map<string, Function> functions, string wrt, Function * root) {
-    /*if(root->toString() == "sin") {
+TreeNode * deriveFunction(unordered_map<string, Operator> operators, unordered_map<string, Function> functions, string wrt, TreeNode * root) {
+
+    //D/dx(sin(x)) = cos(x) * x'
+    if(root->toString() == "sin") {
         return operators.find("*")->second.setOperands(
                 {functions.find("cos")->second.setArguments(root->children), derive(operators, functions, wrt, root->children[0])});
     }
+    //D/dx(log(x)) = 1/(x) * x'
     if(root->toString() == "log") {
         Operator * divisionOperator = operators.find("/")->second.setOperands({new Expression("1"), root->children[0]});
         Operator * multiplyOperator = operators.find("*")->second.setOperands({divisionOperator, derive(operators, functions, wrt, root->children[0])});
         return multiplyOperator;
-    }*/
+    }
+    //D/dx(cos(x)) = -sin(x) * x'
+    if(root->toString() == "cos") {
+        return operators.find("*")->second.setOperands(
+                {functions.find("sin")->second.setArguments(root->children), derive(operators, functions, wrt, root->children[0]), new Expression("-1")});
+    }
+    //D/dx(tan(x)) = sec(x)^2 * x'
+    if(root->toString() == "tan") {
+        Operator * powerOperator = operators.find("^")->second.setOperands({functions.find("sec")->second.setArguments({root->children[0]}), new Expression("2")});
+        Operator * multiplyOperator = operators.find("*")->second.setOperands({powerOperator, derive(operators, functions, wrt, root->children[0])});
+
+        return multiplyOperator;
+    }
 
     Function failSafe("D");
     return failSafe.setArguments({root});
@@ -214,6 +230,7 @@ int main() {
     functions.emplace("sin", Function("sin"));
     functions.emplace("cos", Function("cos"));
     functions.emplace("tan", Function("tan"));
+    functions.emplace("sec", Function("sec"));
     functions.emplace("log", Function("log"));
 
     TreeNode *rootOfEquation = ShuntingYard(operators, "1/x^2");
