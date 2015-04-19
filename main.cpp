@@ -7,81 +7,117 @@
 #include "Function.h"
 
 using namespace std;
-TreeNode * derive(unordered_map<string, Operator>, unordered_map<string, Function>, string, TreeNode *);
 
-stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Operator o) {
-    if (o.toString() == "(" || o.toString() == ")")
-        cout << "Problem" << endl;
+TreeNode *derive(unordered_map<string, Operator>, unordered_map<string, Function>, string, TreeNode *);
+
+/**
+ * @function
+ * A function to create nodes for operators and their operands
+ * @param operand_stack a stack of TreeNode pointers.
+ * @param o An operator to apply.
+ * @return Returns a copy of the stack with the node added
+ */
+stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Operator * o) {
+    //if (o->toString() == "(" || o->toString() == ")")
+        //cout << "Problem" << endl;
     TreeNode *r = operand_stack.top();
     operand_stack.pop();
     TreeNode *l = operand_stack.top();
     operand_stack.pop();
-    operand_stack.push(o.setOperands({l, r}));
+    operand_stack.push(o->setOperands({l, r}));
     return operand_stack;
 }
 
-//TODO: Fix this!
-//      Does C++ regex support lookaround?
+/*stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Function * f) {
+    TreeNode *arg = operand_stack.top();
+    cout << "Argument of " << f->toString() << " is " << arg->toString() << endl;
+    operand_stack.pop();
+    operand_stack.push(f->setArguments({arg}));
+    return operand_stack;
+}*/
+
 vector<string> tokenize(string toTokenize) {
-    //std::regex r4("[0-9]", std::regex_constants::basic);
-    /*(?<=op)|(?=op)
-    [-+*^/()]*/
-    regex pattern("(?=[-+*^/()])");
+    regex pattern("([-+*^/()]|[^-+*^/()\\s]+)");
     sregex_token_iterator first{toTokenize.begin(), toTokenize.end(), pattern}, last;
     return {first, last};
 }
 
-TreeNode *ShuntingYard(unordered_map<string, Operator> operators, string toParse) {
-    stack<Operator> operator_stack;
+TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<string, Function> functions,
+                       string toParse) {
+    stack<TreeNode *> operator_stack;
     stack<TreeNode *> operand_stack;
+    vector<string> tokens = tokenize(toParse);
 
-    for (char c: toParse) {
-        string s = "";
-        s += c;
-
+    //for (string s: tokens) {
+    for(int i = 0; i < tokens.size(); ++i){
+        string s = tokens[i];
         if (s == " ")
             continue;
 
         if (s == "(") {
-            operator_stack.push(Operator(9, "(", false));
+            operator_stack.push(new Operator(9, "(", false));
             continue;
         }
 
         if (s == ")") {
             while (!operator_stack.empty()) {
-                Operator popped = operator_stack.top();
+                TreeNode* popped = operator_stack.top();
                 operator_stack.pop();
-                if (popped.toString() == "(") {
+                if(popped->toString() == "(") {
                     break;
                 }
                 else {
-                    operand_stack = addNode(operand_stack, popped);
+                    if(Operator * o = dynamic_cast<Operator*>(popped)) {
+                        cout << "Awesome O" << endl;
+                        operand_stack = addNode(operand_stack, o);
+                    }
                 }
             }
             continue;
         }
+        if (functions.find(s) != functions.end()) {
+            int rightParenRequiredCount = 0;
+            string substr = "";
+            int tokenSkip = 0;
+            for(int j = i + 1; j < tokens.size(); ++j){
+                tokenSkip++;
+                if(tokens[j] == "(")
+                    rightParenRequiredCount++;
+                if(tokens[j] == ")")
+                    rightParenRequiredCount--;
+                substr += tokens[j];
+
+                if(rightParenRequiredCount == 0)
+                    break;
+            }
+            Function * f = functions.find(s)->second.setArguments({ShuntingYard(operators, functions, substr)});
+            operand_stack.push(f);
+            i += tokenSkip;
+            continue;
+        }
         if (operators.find(s) != operators.end()) {
-            Operator *o1 = &operators.find(s)->second;
+            Operator *o1 = &(operators.find(s)->second);
             Operator *o2 = nullptr;
-            while (!operator_stack.empty() && (o2 = &operators.find(operator_stack.top().toString())->second)) {
-                if (operators.find(operator_stack.top().toString()) == operators.end())
+            while (!operator_stack.empty() && (o2 = &(operators.find(operator_stack.top()->toString())->second))) {
+                if (operators.find(operator_stack.top()->toString()) == operators.end())
                     break;
 
                 if ((!o1->isRightAssociative() && 0 == o1->comparePrecedence(o2)) || o1->comparePrecedence(o2) < 0) {
                     operator_stack.pop();
-                    operand_stack = addNode(operand_stack, *o2);
+                    operand_stack = addNode(operand_stack, o2);
                 } else {
                     break;
                 }
             }
-            operator_stack.push(operators.find(s)->second);
+            operator_stack.push(&(operators.find(s)->second));
         }
         else {
             operand_stack.emplace(new Expression(s));
         }
     }
     while (!operator_stack.empty()) {
-        operand_stack = addNode(operand_stack, operator_stack.top());
+        Operator * o = dynamic_cast<Operator*>(operator_stack.top());
+        operand_stack = addNode(operand_stack, o);
         operator_stack.pop();
     }
 
@@ -91,40 +127,54 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, string toParse
         return new Expression("0");
 }
 
-TreeNode * deriveFunction(unordered_map<string, Operator> operators, unordered_map<string, Function> functions, string wrt, TreeNode * root) {
+TreeNode *deriveFunction(unordered_map<string, Operator> operators, unordered_map<string, Function> functions,
+                         string wrt, TreeNode *root) {
 
     //D/dx(sin(x)) = cos(x) * x'
-    if(root->toString() == "sin") {
+    if (root->toString() == "sin") {
         return operators.find("*")->second.setOperands(
-                {functions.find("cos")->second.setArguments(root->children), derive(operators, functions, wrt, root->children[0])});
-    }
-    //D/dx(log(x)) = 1/x * x'
-    if(root->toString() == "log") {
-        Operator * divisionOperator = operators.find("/")->second.setOperands({new Expression("1"), root->children[0]});
-        Operator * multiplyOperator = operators.find("*")->second.setOperands({divisionOperator, derive(operators, functions, wrt, root->children[0])});
-        return multiplyOperator;
+                {functions.find("cos")->second.setArguments(root->children),
+                 derive(operators, functions, wrt, root->children[0])});
     }
     //D/dx(cos(x)) = -sin(x) * x'
-    if(root->toString() == "cos") {
+    if (root->toString() == "cos") {
         return operators.find("*")->second.setOperands(
-                {functions.find("sin")->second.setArguments(root->children), derive(operators, functions, wrt, root->children[0]), new Expression("-1")});
+                {functions.find("sin")->second.setArguments(root->children),
+                 derive(operators, functions, wrt, root->children[0]), new Expression("-1")});
     }
     //D/dx(tan(x)) = sec(x)^2 * x'
-    if(root->toString() == "tan") {
-        Operator * powerOperator = operators.find("^")->second.setOperands({functions.find("sec")->second.setArguments({root->children[0]}), new Expression("2")});
-        Operator * multiplyOperator = operators.find("*")->second.setOperands({powerOperator, derive(operators, functions, wrt, root->children[0])});
+    if (root->toString() == "tan") {
+        Operator *powerOperator = operators.find("^")->second.setOperands(
+                {functions.find("sec")->second.setArguments({root->children[0]}), new Expression("2")});
+        Operator *multiplyOperator = operators.find("*")->second.setOperands(
+                {powerOperator, derive(operators, functions, wrt, root->children[0])});
 
         return multiplyOperator;
     }
+    //D/dx(log(x)) = 1/x * x'
+    if (root->toString() == "log") {
+        Operator *divisionOperator = operators.find("/")->second.setOperands({new Expression("1"), root->children[0]});
+        Operator *multiplyOperator = operators.find("*")->second.setOperands(
+                {divisionOperator, derive(operators, functions, wrt, root->children[0])});
+        return multiplyOperator;
+    }
+    //D/dx(sec(x)) = sec(x) * tan(x) * x'
+    if (root->toString() == "sec") {
+        return operators.find("*")->second.setOperands(
+                {functions.find("sec")->second.setArguments(root->children),
+                 functions.find("tan")->second.setArguments(root->children),
+                 derive(operators, functions, wrt, root->children[0])});
+    }
 
-    Function failSafe("D");
+    Function failSafe("D/d" + wrt);
     return failSafe.setArguments({root});
 }
 
 //Returns a TreeNode that represents the derivative of the supplied function wrt 'wrt'
-TreeNode *derive(unordered_map<string, Operator> operators, unordered_map<string, Function> functions, string wrt, TreeNode *root) {
+TreeNode *derive(unordered_map<string, Operator> operators, unordered_map<string, Function> functions, string wrt,
+                 TreeNode *root) {
     Function *functionRoot = dynamic_cast<Function *>(root);
-    if(functionRoot != nullptr)
+    if (functionRoot != nullptr)
         return deriveFunction(operators, functions, wrt, functionRoot);
 
     //It's an operator
@@ -155,7 +205,7 @@ TreeNode *derive(unordered_map<string, Operator> operators, unordered_map<string
 
                 for (int j = 0; j < opRoot->children.size(); ++j) {
                     //Safely get a copy of this tree
-                    vector<TreeNode *> copyOfChildren = ShuntingYard(operators,
+                    vector<TreeNode *> copyOfChildren = ShuntingYard(operators, functions,
                                                                      opRoot->evaluate()->toString())->children;
                     vector<TreeNode *> toPassMultiply;
 
@@ -191,13 +241,14 @@ TreeNode *derive(unordered_map<string, Operator> operators, unordered_map<string
 
                 TreeNode *oldExponent = opRoot->children[1];
                 Operator *newExponent = operators.find("-")->second.setOperands(
-                        {ShuntingYard(operators, oldExponent->evaluate()->toString()), new Expression("1")});
+                        {ShuntingYard(operators, functions, oldExponent->evaluate()->toString()), new Expression("1")});
 
-                TreeNode *newCoefficient = ShuntingYard(operators, oldExponent->evaluate()->toString());
+                TreeNode *newCoefficient = ShuntingYard(operators, functions, oldExponent->evaluate()->toString());
                 Operator *newPowerOp = operators.find("^")->second.setOperands(
-                        {ShuntingYard(operators, base->evaluate()->toString()), newExponent});
+                        {ShuntingYard(operators, functions, base->evaluate()->toString()), newExponent});
 
-                Operator *multiplyOp = operators.find("*")->second.setOperands({newCoefficient, newPowerOp, derivedBase});
+                Operator *multiplyOp = operators.find("*")->second.setOperands(
+                        {newCoefficient, newPowerOp, derivedBase});
                 return multiplyOp;
             }
         }
@@ -232,25 +283,39 @@ int main() {
     functions.emplace("tan", Function("tan"));
     functions.emplace("sec", Function("sec"));
     functions.emplace("log", Function("log"));
+    functions.emplace("harmonic", Function("harmonic"));
 
     cout << "Testing expressions..." << endl;
-    TreeNode *rootOfEquation = ShuntingYard(operators, "1/x^2");
+    TreeNode *rootOfEquation = ShuntingYard(operators, functions, "1/x^2");
     cout << "f(x) = " << rootOfEquation->evaluate()->toString() << endl;
     TreeNode *dRootOfEquation = derive(operators, functions, "x", rootOfEquation);
     cout << "f'(x) = " << ((dRootOfEquation == nullptr) ? "nullptr" : dRootOfEquation->evaluate()->toString()) << endl;
 
     cout << "\n\n\nTesting trig functions..." << endl;
 
-    TreeNode * g = functions.find("tan")->second.setArguments({ShuntingYard(operators, "x^2")});
+    TreeNode *g = functions.find("tan")->second.setArguments({ShuntingYard(operators, functions, "x^2")});
     cout << "g(x) = " << g->evaluate()->toString() << endl;
-    TreeNode * gPrime = derive(operators, functions, "x", g);
+    TreeNode *gPrime = derive(operators, functions, "x", g);
     cout << "g'(x) = " << ((gPrime == nullptr) ? "nullptr" : gPrime->evaluate()->toString()) << endl;
 
     cout << "\n\n\nTesting composite functions..." << endl;
-    TreeNode * composite = functions.find("log")->second.setArguments({functions.find("sin")->second.setArguments({new Expression("x")})});
+    TreeNode *composite = functions.find("log")->second.setArguments({functions.find("sin")->second.setArguments({g})});
     cout << "c(x) = " << composite->evaluate()->toString() << endl;
-    TreeNode * compositePrime = derive(operators, functions, "x", composite);
+    TreeNode *compositePrime = derive(operators, functions, "x", composite);
     cout << "c'(x) = " << ((compositePrime == nullptr) ? "nullptr" : compositePrime->evaluate()->toString()) << endl;
+
+    cout << "\n\n\nTesting not implemented functions..." << endl;
+    TreeNode *notImplemented = functions.find("harmonic")->second.setArguments({new Expression("x")});
+    cout << "u(x) = " << notImplemented->evaluate()->toString() << endl;
+    TreeNode *notImplementedPrime = derive(operators, functions, "x", notImplemented);
+    cout << "u'(x) = " <<
+    ((notImplementedPrime == nullptr) ? "nullptr" : notImplementedPrime->evaluate()->toString()) << endl;
+
+    cout << "\n\n\nTesting parsing of functions..." << endl;
+    TreeNode * trig = ShuntingYard(operators, functions, "sin(x) + cos(tan(log(x)))");
+    cout << "t(x) = " << trig->evaluate()->toString() << endl;
+    TreeNode * trigDeriv = derive(operators, functions, "x", trig);
+    cout << "t'(x) = " << ((trigDeriv == nullptr) ? "nullptr" : trigDeriv->evaluate()->toString()) << endl;
 
 
     return 0;
