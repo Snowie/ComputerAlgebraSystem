@@ -18,8 +18,6 @@ TreeNode *derive(unordered_map<string, Operator>, unordered_map<string, Function
  * @return Returns a copy of the stack with the node added
  */
 stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Operator * o) {
-    //if (o->toString() == "(" || o->toString() == ")")
-        //cout << "Problem" << endl;
     TreeNode *r = operand_stack.top();
     operand_stack.pop();
     TreeNode *l = operand_stack.top();
@@ -27,14 +25,6 @@ stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Operator * o) {
     operand_stack.push(o->setOperands({l, r}));
     return operand_stack;
 }
-
-/*stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Function * f) {
-    TreeNode *arg = operand_stack.top();
-    cout << "Argument of " << f->toString() << " is " << arg->toString() << endl;
-    operand_stack.pop();
-    operand_stack.push(f->setArguments({arg}));
-    return operand_stack;
-}*/
 
 vector<string> tokenize(string toTokenize) {
     regex pattern("([-+*^/()]|[^-+*^/()\\s]+)");
@@ -48,7 +38,6 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
     stack<TreeNode *> operand_stack;
     vector<string> tokens = tokenize(toParse);
 
-    //for (string s: tokens) {
     for(int i = 0; i < tokens.size(); ++i){
         string s = tokens[i];
         if (s == " ")
@@ -75,6 +64,8 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
             }
             continue;
         }
+
+        //Witchcraft!
         if (functions.find(s) != functions.end()) {
             int rightParenRequiredCount = 0;
             string substr = "";
@@ -95,6 +86,7 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
             i += tokenSkip;
             continue;
         }
+
         if (operators.find(s) != operators.end()) {
             Operator *o1 = &(operators.find(s)->second);
             Operator *o2 = nullptr;
