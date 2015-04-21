@@ -15,9 +15,9 @@ TreeNode *derive(unordered_map<string, Operator>, unordered_map<string, Function
  * A function to create nodes for operators and their operands
  * @param operand_stack a stack of TreeNode pointers.
  * @param o An operator to apply.
- * @return Returns a copy of the stack with the node added
+ * @return A copy of the stack with the new operator on it
  */
-stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Operator * o) {
+stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Operator *o) {
     TreeNode *r = operand_stack.top();
     operand_stack.pop();
     TreeNode *l = operand_stack.top();
@@ -38,7 +38,7 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
     stack<TreeNode *> operand_stack;
     vector<string> tokens = tokenize(toParse);
 
-    for(int i = 0; i < tokens.size(); ++i){
+    for (int i = 0; i < tokens.size(); ++i) {
         string s = tokens[i];
         if (s == " ")
             continue;
@@ -50,14 +50,14 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
 
         if (s == ")") {
             while (!operator_stack.empty()) {
-                TreeNode* popped = operator_stack.top();
+                TreeNode *popped = operator_stack.top();
                 operator_stack.pop();
-                if(popped->toString() == "(") {
+                if (popped->toString() == "(") {
                     break;
                 }
                 else {
-                    if(Operator * o = dynamic_cast<Operator*>(popped)) {
-                        cout << "Awesome O" << endl;
+                    if (Operator *o = dynamic_cast<Operator *>(popped)) {
+                        //cout << "Awesome O" << endl;
                         operand_stack = addNode(operand_stack, o);
                     }
                 }
@@ -68,21 +68,26 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
         //Witchcraft!
         if (functions.find(s) != functions.end()) {
             int rightParenRequiredCount = 0;
-            string substr = "";
+            string functionSubstring = "";
             int tokenSkip = 0;
-            for(int j = i + 1; j < tokens.size(); ++j){
+            for (int j = i + 1; j < tokens.size(); ++j) {
                 tokenSkip++;
-                if(tokens[j] == "(")
+                if (tokens[j] == "(")
                     rightParenRequiredCount++;
-                if(tokens[j] == ")")
+                if (tokens[j] == ")")
                     rightParenRequiredCount--;
-                substr += tokens[j];
+                functionSubstring += tokens[j];
 
-                if(rightParenRequiredCount == 0)
+                if (rightParenRequiredCount == 0)
                     break;
             }
-            Function * f = functions.find(s)->second.setArguments({ShuntingYard(operators, functions, substr)});
+            Function *f = functions.find(s)->second.setArguments(
+                    {ShuntingYard(operators, functions, functionSubstring)});
+
+            //Place the function on the stack like any other literal/expression
             operand_stack.push(f);
+
+            //Don't reparse the skipped expression
             i += tokenSkip;
             continue;
         }
@@ -108,7 +113,7 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
         }
     }
     while (!operator_stack.empty()) {
-        Operator * o = dynamic_cast<Operator*>(operator_stack.top());
+        Operator *o = dynamic_cast<Operator *>(operator_stack.top());
         operand_stack = addNode(operand_stack, o);
         operator_stack.pop();
     }
@@ -277,37 +282,21 @@ int main() {
     functions.emplace("log", Function("log"));
     functions.emplace("harmonic", Function("harmonic"));
 
-    cout << "Testing expressions..." << endl;
-    TreeNode *rootOfEquation = ShuntingYard(operators, functions, "1/x^2");
-    cout << "f(x) = " << rootOfEquation->evaluate()->toString() << endl;
-    TreeNode *dRootOfEquation = derive(operators, functions, "x", rootOfEquation);
-    cout << "f'(x) = " << ((dRootOfEquation == nullptr) ? "nullptr" : dRootOfEquation->evaluate()->toString()) << endl;
+    while (true) {
+        cout << "\n\n\nEnter the function you would like to parse, or type quit to quit: ";
+        string expression;
+        //cin >> expression;
+        getline(cin, expression);
+        if (expression == "quit") {
+            cout << "Caught exit command, exiting..." << endl;
+            break;
+        }
+        TreeNode *f = ShuntingYard(operators, functions, expression);
+        TreeNode *fPrime = derive(operators, functions, "x", f);
+        cout << "f(x) = " << f->evaluate()->toString() << endl;
+        cout << "f'(x) = " << ((fPrime == nullptr) ? "nullptr" : fPrime->evaluate()->toString()) << endl;
 
-    cout << "\n\n\nTesting trig functions..." << endl;
-
-    TreeNode *g = functions.find("tan")->second.setArguments({ShuntingYard(operators, functions, "x^2")});
-    cout << "g(x) = " << g->evaluate()->toString() << endl;
-    TreeNode *gPrime = derive(operators, functions, "x", g);
-    cout << "g'(x) = " << ((gPrime == nullptr) ? "nullptr" : gPrime->evaluate()->toString()) << endl;
-
-    cout << "\n\n\nTesting composite functions..." << endl;
-    TreeNode *composite = functions.find("log")->second.setArguments({functions.find("sin")->second.setArguments({g})});
-    cout << "c(x) = " << composite->evaluate()->toString() << endl;
-    TreeNode *compositePrime = derive(operators, functions, "x", composite);
-    cout << "c'(x) = " << ((compositePrime == nullptr) ? "nullptr" : compositePrime->evaluate()->toString()) << endl;
-
-    cout << "\n\n\nTesting not implemented functions..." << endl;
-    TreeNode *notImplemented = functions.find("harmonic")->second.setArguments({new Expression("x")});
-    cout << "u(x) = " << notImplemented->evaluate()->toString() << endl;
-    TreeNode *notImplementedPrime = derive(operators, functions, "x", notImplemented);
-    cout << "u'(x) = " <<
-    ((notImplementedPrime == nullptr) ? "nullptr" : notImplementedPrime->evaluate()->toString()) << endl;
-
-    cout << "\n\n\nTesting parsing of functions..." << endl;
-    TreeNode * trig = ShuntingYard(operators, functions, "sin(x) + cos(tan(log(x)))");
-    cout << "t(x) = " << trig->evaluate()->toString() << endl;
-    TreeNode * trigDeriv = derive(operators, functions, "x", trig);
-    cout << "t'(x) = " << ((trigDeriv == nullptr) ? "nullptr" : trigDeriv->evaluate()->toString()) << endl;
+    }
 
 
     return 0;
