@@ -8,6 +8,10 @@
 #include "TreeNode.h"
 #include "Operator.h"
 
+/**
+ * @class
+ * A class to represent operators as TreeNodes
+ */
 class Operator : public TreeNode {
 public:
     Operator(int, string, bool);

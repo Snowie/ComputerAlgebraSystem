@@ -14,6 +14,10 @@ using std::string;
 
 class Expression;
 
+/**
+ * @class
+ * A class to represent nodes within a tree
+ */
 class TreeNode {
 public:
     virtual Expression *evaluate() = 0;
@@ -25,6 +29,10 @@ public:
     vector<TreeNode *> children;
 };
 
+/**
+ * @class
+ * A class to represent expressions as a TreeNode
+ */
 class Expression : public TreeNode {
 public:
     Expression(string);

@@ -5,7 +5,10 @@
 #include "TreeNode.h"
 #include "Operator.h"
 #include "Function.h"
-
+/**
+ * @file main.cpp
+ * The starting point of execution for CAS
+ */
 using namespace std;
 
 TreeNode *derive(unordered_map<string, Operator>, unordered_map<string, Function>, string, TreeNode *);
@@ -26,6 +29,12 @@ stack<TreeNode *> addNode(stack<TreeNode *> operand_stack, Operator *o) {
     return operand_stack;
 }
 
+/**
+ *  @function
+ *  A function to tokenize and split a string on operators
+ *  @param toTokenize The string to be tokenized
+ *  @return A vector of string tokens
+ */
 vector<string> tokenize(string toTokenize) {
     regex pattern("([-+*^/()]|[^-+*^/()\\s]+)");
     sregex_token_iterator first{toTokenize.begin(), toTokenize.end(), pattern}, last;
@@ -40,6 +49,7 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
 
     for (int i = 0; i < tokens.size(); ++i) {
         string s = tokens[i];
+        //Spaces don't do anything!
         if (s == " ")
             continue;
 
@@ -52,24 +62,26 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
             while (!operator_stack.empty()) {
                 TreeNode *popped = operator_stack.top();
                 operator_stack.pop();
-                if (popped->toString() == "(") {
+                if (popped->toString() == "(")
                     break;
-                }
-                else {
-                    if (Operator *o = dynamic_cast<Operator *>(popped)) {
-                        //cout << "Awesome O" << endl;
-                        operand_stack = addNode(operand_stack, o);
-                    }
-                }
+                else if (Operator *o = dynamic_cast<Operator *>(popped))
+                    operand_stack = addNode(operand_stack, o);
             }
             continue;
         }
 
-        //Witchcraft!
+        //Start a new recursive call to ShuntingYard and parse the arguments of the function, add the new function
+        //  to the operand stack upon completion
         if (functions.find(s) != functions.end()) {
+            //Our stop condition
             int rightParenRequiredCount = 0;
+
             string functionSubstring = "";
+
+            //How far forward should we go once done?
             int tokenSkip = 0;
+
+            //Iterate through until all left parentheses have been matched
             for (int j = i + 1; j < tokens.size(); ++j) {
                 tokenSkip++;
                 if (tokens[j] == "(")
@@ -81,6 +93,8 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
                 if (rightParenRequiredCount == 0)
                     break;
             }
+
+            //The arguments of the function are the return value of shunting yard
             Function *f = functions.find(s)->second.setArguments(
                     {ShuntingYard(operators, functions, functionSubstring)});
 
@@ -92,13 +106,20 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
             continue;
         }
 
+        //Is the token an operator?
         if (operators.find(s) != operators.end()) {
             Operator *o1 = &(operators.find(s)->second);
             Operator *o2 = nullptr;
-            while (!operator_stack.empty() && (o2 = &(operators.find(operator_stack.top()->toString())->second))) {
+
+            //While there are operators...
+            while (!operator_stack.empty()) {
+                o2 = &(operators.find(operator_stack.top()->toString())->second);
+
+                //This is no longer an operator!
                 if (operators.find(operator_stack.top()->toString()) == operators.end())
                     break;
 
+                //If o1 is right associative and is of the same or higher precedence than o1...
                 if ((!o1->isRightAssociative() && 0 == o1->comparePrecedence(o2)) || o1->comparePrecedence(o2) < 0) {
                     operator_stack.pop();
                     operand_stack = addNode(operand_stack, o2);
@@ -124,6 +145,15 @@ TreeNode *ShuntingYard(unordered_map<string, Operator> operators, unordered_map<
         return new Expression("0");
 }
 
+/**
+ * @function
+ * A helper function that extends derive for the purposes of functions
+ * @param operators An unordered map of operators
+ * @param functions An unordered map of functions
+ * @param wrt A string containing the variable for which we should derive with respect to
+ * @param root A pointer to the root of the function
+ * @return A TreeNode pointer representing the derivative of the requested function
+ */
 TreeNode *deriveFunction(unordered_map<string, Operator> operators, unordered_map<string, Function> functions,
                          string wrt, TreeNode *root) {
 
@@ -167,7 +197,15 @@ TreeNode *deriveFunction(unordered_map<string, Operator> operators, unordered_ma
     return failSafe.setArguments({root});
 }
 
-//Returns a TreeNode that represents the derivative of the supplied function wrt 'wrt'
+/**
+ * @function
+ * A function for computing the derivative of an expression
+ * @param operators An unordered map of operators
+ * @param functions An unordered map of functions
+ * @param wrt A string containing the variable for which we should derive with respect to
+ * @param root A pointer to the root of the equation
+ * @return A TreeNode pointer that represents the derivative of the supplied expression wrt 'wrt'
+ */
 TreeNode *derive(unordered_map<string, Operator> operators, unordered_map<string, Function> functions, string wrt,
                  TreeNode *root) {
     Function *functionRoot = dynamic_cast<Function *>(root);
@@ -265,6 +303,85 @@ TreeNode *derive(unordered_map<string, Operator> operators, unordered_map<string
     return new Expression("0");
 }
 
+TreeNode * flatten(unordered_map<string, Operator> operators, unordered_map<string, Function> functions,
+                   TreeNode *root) {
+    Operator * o = dynamic_cast<Operator*>(root);
+
+    if(o == nullptr || root->children.size() == 0)
+        return root;
+
+    for(auto c: o->children){
+
+    }
+
+}
+
+TreeNode *simplifyR(unordered_map<string, Operator> operators, unordered_map<string, Function> functions,
+                    TreeNode *root) {
+    Function *f = dynamic_cast<Function *>(root);
+    Operator *o = dynamic_cast<Operator *>(root);
+
+    if (f != nullptr)
+        for (auto a: f->children)
+            a = simplifyR(operators, functions, a);
+
+    if (o != nullptr) {
+        vector<TreeNode *> newChildren;
+
+        if (o->toString() == "+")
+            for (auto c: o->children)
+                if (c->toString() != "0")
+                    newChildren.push_back(ShuntingYard(operators, functions, c->evaluate()->toString()));
+
+        if (o->toString() == "*") {
+            bool isZeroProduct = false;
+            for (auto c: o->children) {
+                Expression *e = dynamic_cast<Expression *>(c);
+                if (e != nullptr) {
+                    if (e->toString() == "0") {
+                        isZeroProduct = true;
+                        break;
+                    }
+                }
+            }
+            if (isZeroProduct) {
+                delete root;
+                root = new Expression("0");
+            }
+            for (auto c: o->children) {
+                Expression *e = dynamic_cast<Expression *>(c);
+                if (e != nullptr) {
+                    if (e->toString() != "1")
+                        newChildren.push_back(c);
+                }
+            }
+        }
+
+        o->children = newChildren;
+        if (o->children.size() == 1) {
+            TreeNode *t = ShuntingYard(operators, functions, o->children[0]->evaluate()->toString());
+            delete o;
+            root = t;
+        }
+    }
+
+    return root;
+}
+
+TreeNode *simplify(unordered_map<string, Operator> operators, unordered_map<string, Function> functions,
+                   TreeNode *root) {
+    TreeNode *copyOfRoot = ShuntingYard(operators, functions, root->evaluate()->toString());
+    copyOfRoot = simplifyR(operators, functions, copyOfRoot);
+    while (copyOfRoot->evaluate()->toString() != root->evaluate()->toString()) {
+        delete root;
+        root = copyOfRoot;
+        copyOfRoot = simplifyR(operators, functions, copyOfRoot);
+    }
+    root = copyOfRoot;
+
+    return root;
+}
+
 int main() {
     unordered_map<string, Operator> operators;
     unordered_map<string, Function> functions;
@@ -285,19 +402,19 @@ int main() {
     while (true) {
         cout << "\n\n\nEnter the function you would like to parse, or type quit to quit: ";
         string expression;
-        //cin >> expression;
         getline(cin, expression);
         if (expression == "quit") {
             cout << "Caught exit command, exiting..." << endl;
             break;
         }
         TreeNode *f = ShuntingYard(operators, functions, expression);
+        f = simplify(operators, functions, f);
         TreeNode *fPrime = derive(operators, functions, "x", f);
+        fPrime = simplify(operators, functions, fPrime);
         cout << "f(x) = " << f->evaluate()->toString() << endl;
         cout << "f'(x) = " << ((fPrime == nullptr) ? "nullptr" : fPrime->evaluate()->toString()) << endl;
 
     }
-
 
     return 0;
 }
