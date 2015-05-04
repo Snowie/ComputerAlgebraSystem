@@ -209,12 +209,12 @@ TreeNode *deriveFunction(unordered_map<string, Operator> operators, unordered_ma
 TreeNode *derive(unordered_map<string, Operator> operators, unordered_map<string, Function> functions, string wrt,
                  TreeNode *root) {
     Function *functionRoot = dynamic_cast<Function *>(root);
+    Operator *opRoot = dynamic_cast<Operator *>(root);
     if (functionRoot != nullptr)
         return deriveFunction(operators, functions, wrt, functionRoot);
 
     //It's an operator
-    if (!root->children.empty()) {
-        Operator *opRoot = dynamic_cast<Operator *>(root);
+    if (opRoot != nullptr) {
         switch (opRoot->toString()[0]) {
             case '+': {
                 //D/dx(a + b) = a' + b'
@@ -258,6 +258,8 @@ TreeNode *derive(unordered_map<string, Operator> operators, unordered_map<string
             }
             case '/': {
                 //D/dx(f(x)/g(x)) = (f'(x)g(x) - f(x)g'(x))/(g(x))^2
+                if(opRoot->children.size() < 2 || opRoot->children.size() > 2)
+                    cout << "Huh..?" << endl;
                 Operator *multiplyOp1 = operators.find("*")->second.setOperands(
                         {derive(operators, functions, wrt, opRoot->children[0]), opRoot->children[1]});
 
@@ -303,81 +305,57 @@ TreeNode *derive(unordered_map<string, Operator> operators, unordered_map<string
     return new Expression("0");
 }
 
-TreeNode * flatten(unordered_map<string, Operator> operators, unordered_map<string, Function> functions,
-                   TreeNode *root) {
-    Operator * o = dynamic_cast<Operator*>(root);
-
-    if(o == nullptr || root->children.size() == 0)
-        return root;
-
-    for(auto c: o->children){
-
-    }
-
-}
-
-TreeNode *simplifyR(unordered_map<string, Operator> operators, unordered_map<string, Function> functions,
+//TODO, either allow for more than two operators on ShuntingYard, or don't use it here!
+TreeNode *simplify(unordered_map<string, Operator> operators, unordered_map<string, Function> functions,
                     TreeNode *root) {
     Function *f = dynamic_cast<Function *>(root);
     Operator *o = dynamic_cast<Operator *>(root);
 
-    if (f != nullptr)
-        for (auto a: f->children)
-            a = simplifyR(operators, functions, a);
+    if (f != nullptr) {
+        for (int i = 0; i < root->children.size(); ++i)
+            root->children[i] = simplify(operators, functions, root->children[i]);
+    }
 
-    if (o != nullptr) {
-        vector<TreeNode *> newChildren;
+    if(o != nullptr) {
+        for(int i = 0; i < root->children.size(); ++i)
+            root->children[i] = simplify(operators, functions, root->children[i]);
 
-        if (o->toString() == "+")
-            for (auto c: o->children)
-                if (c->toString() != "0")
-                    newChildren.push_back(ShuntingYard(operators, functions, c->evaluate()->toString()));
+        if(o->toString() == "*") {
+            for (int i = 0; i < o->children.size(); ++i) {
+                //Identity: 1
+                if(o->children[i]->toString() == "1") {
+                    auto it = o->children.begin() + i;
+                    delete o->children[i];
+                    o->children.erase(it);
+                    --i;
 
-        if (o->toString() == "*") {
-            bool isZeroProduct = false;
-            for (auto c: o->children) {
-                Expression *e = dynamic_cast<Expression *>(c);
-                if (e != nullptr) {
-                    if (e->toString() == "0") {
-                        isZeroProduct = true;
-                        break;
+                    //If we were only multiplying ones, make sure we don't just lose all of them
+                    if(o->children.empty()) {
+                        delete o;
+                        return new Expression("1");
                     }
+
+                    continue;
                 }
-            }
-            if (isZeroProduct) {
-                delete root;
-                root = new Expression("0");
-            }
-            for (auto c: o->children) {
-                Expression *e = dynamic_cast<Expression *>(c);
-                if (e != nullptr) {
-                    if (e->toString() != "1")
-                        newChildren.push_back(c);
+
+                //Zero product is always zero (unless infinity)
+                if(o->children[i]->toString() == "0") {
+                    delete root;
+                    return new Expression("0");
                 }
             }
         }
 
-        o->children = newChildren;
-        if (o->children.size() == 1) {
-            TreeNode *t = ShuntingYard(operators, functions, o->children[0]->evaluate()->toString());
-            delete o;
-            root = t;
+        //If an operator only has one child, drag that child up
+        if(o->children.size() == 1){
+            TreeNode * toBringUp = o->children[0];
+
+            o->children.erase(o->children.begin());
+            delete root;
+
+            return toBringUp;
         }
     }
-
-    return root;
-}
-
-TreeNode *simplify(unordered_map<string, Operator> operators, unordered_map<string, Function> functions,
-                   TreeNode *root) {
-    TreeNode *copyOfRoot = ShuntingYard(operators, functions, root->evaluate()->toString());
-    copyOfRoot = simplifyR(operators, functions, copyOfRoot);
-    while (copyOfRoot->evaluate()->toString() != root->evaluate()->toString()) {
-        delete root;
-        root = copyOfRoot;
-        copyOfRoot = simplifyR(operators, functions, copyOfRoot);
-    }
-    root = copyOfRoot;
 
     return root;
 }
@@ -399,9 +377,11 @@ int main() {
     functions.emplace("log", Function("log"));
     functions.emplace("harmonic", Function("harmonic"));
 
+    //cout << "Before loop" << endl;
+
     while (true) {
         cout << "\n\n\nEnter the function you would like to parse, or type quit to quit: ";
-        string expression;
+        string expression = "0 * 1 * 0";
         getline(cin, expression);
         if (expression == "quit") {
             cout << "Caught exit command, exiting..." << endl;
@@ -409,11 +389,23 @@ int main() {
         }
         TreeNode *f = ShuntingYard(operators, functions, expression);
         f = simplify(operators, functions, f);
-        TreeNode *fPrime = derive(operators, functions, "x", f);
+
+        //Crash happens in these two lines
+        /*cout << "Before Derive..." << endl;
+        TreeNode * fTestPrime = derive(operators, functions, "x", ShuntingYard(operators, functions, f->evaluate()->toString()));
+        cout << "After Derive..." << endl;
+        fTestPrime = simplify(operators, functions, fTestPrime);*/
+
+        //But not in here
+        TreeNode *fPrime = ShuntingYard(operators, functions, derive(operators, functions, "x", f)->evaluate()->toString());
+        //TreeNode *fPrime = derive(operators, functions, "x", ShuntingYard(operators, functions, f->evaluate()->toString()));
         fPrime = simplify(operators, functions, fPrime);
+
         cout << "f(x) = " << f->evaluate()->toString() << endl;
         cout << "f'(x) = " << ((fPrime == nullptr) ? "nullptr" : fPrime->evaluate()->toString()) << endl;
 
+        delete f;
+        delete fPrime;
     }
 
     return 0;
