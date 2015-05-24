@@ -24,6 +24,13 @@ Expression *Operator::evaluate() {
         if (i != children.size() - 1) {
             Operator *opCheck = dynamic_cast<Operator *>(children[i]);
 
+            //TODO: Fix this dirty hack
+            if(opCheck != nullptr && toString() == opCheck->toString() && toString() == "/"){
+                s += "(" + children[i]->evaluate()->toString() + ") " + representation + " ";
+                continue;
+            }
+
+
             if (opCheck != nullptr && ((this->comparePrecedence(opCheck) == 0 && opCheck->isRightAssociative()) ||
                                        this->comparePrecedence(opCheck) == 1))
                 s += "(" + children[i]->evaluate()->toString() + ") " + representation + " ";
@@ -32,6 +39,12 @@ Expression *Operator::evaluate() {
         }
         else {
             Operator *opCheck = dynamic_cast<Operator *>(children[i]);
+
+            //TODO: Fix this dirty hack
+            if(opCheck != nullptr && toString() == opCheck->toString() && toString() == "/"){
+                s += "(" + children[i]->evaluate()->toString() + ")";
+                continue;
+            }
 
             if (opCheck != nullptr && ((this->comparePrecedence(opCheck) == 0 && opCheck->isRightAssociative()) ||
                                        this->comparePrecedence(opCheck) == 1))
@@ -63,9 +76,6 @@ int Operator::comparePrecedence(Operator *o) const {
 
 //Operator *Operator::setOperands(std::initializer_list<string> operands) const {
 Operator *Operator::setOperands(vector<TreeNode *> listOfOperands) const {
-    /*vector<TreeNode *> listOfOperands;
-    for (auto operand: operands)
-        listOfOperands.push_back(new Expression(operand));*/
     return new Operator(this, listOfOperands);
 }
 
