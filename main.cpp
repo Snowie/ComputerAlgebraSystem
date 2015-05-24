@@ -159,19 +159,23 @@ TreeNode *deriveFunction(unordered_map<string, Operator> operators, unordered_ma
     //D/dx(sin(x)) = cos(x) * x'
     if (root->toString() == "sin") {
         return operators.find("*")->second.setOperands(
-                {functions.find("cos")->second.setArguments({ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())}),
+                {functions.find("cos")->second.setArguments(
+                        {ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())}),
                  derive(operators, functions, wrt, root->children[0])});
     }
     //D/dx(cos(x)) = -sin(x) * x'
     if (root->toString() == "cos") {
         return operators.find("*")->second.setOperands(
-                {functions.find("sin")->second.setArguments({ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())}),
+                {functions.find("sin")->second.setArguments(
+                        {ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())}),
                  derive(operators, functions, wrt, root->children[0]), new Expression("-1")});
     }
     //D/dx(tan(x)) = sec(x)^2 * x'
     if (root->toString() == "tan") {
         Operator *powerOperator = operators.find("^")->second.setOperands(
-                {functions.find("sec")->second.setArguments({ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())}), new Expression("2")});
+                {functions.find("sec")->second.setArguments(
+                        {ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())}),
+                 new Expression("2")});
         Operator *multiplyOperator = operators.find("*")->second.setOperands(
                 {powerOperator, derive(operators, functions, wrt, root->children[0])});
 
@@ -179,7 +183,8 @@ TreeNode *deriveFunction(unordered_map<string, Operator> operators, unordered_ma
     }
     //D/dx(log(x)) = 1/x * x'
     if (root->toString() == "log") {
-        Operator *divisionOperator = operators.find("/")->second.setOperands({new Expression("1"), ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())});
+        Operator *divisionOperator = operators.find("/")->second.setOperands(
+                {new Expression("1"), ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())});
         Operator *multiplyOperator = operators.find("*")->second.setOperands(
                 {divisionOperator, derive(operators, functions, wrt, root->children[0])});
         return multiplyOperator;
@@ -187,12 +192,14 @@ TreeNode *deriveFunction(unordered_map<string, Operator> operators, unordered_ma
     //TODO: simplify doesn't play nice  with more than two operands, fix this so we can fix this function.
     //D/dx(sec(x)) = sec(x) * tan(x) * x'
     if (root->toString() == "sec") {
-        TreeNode * toSanitize =  operators.find("*")->second.setOperands(
-                {functions.find("sec")->second.setArguments({ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())}),
-                 functions.find("tan")->second.setArguments({ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())}),
+        TreeNode *toSanitize = operators.find("*")->second.setOperands(
+                {functions.find("sec")->second.setArguments(
+                        {ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())}),
+                 functions.find("tan")->second.setArguments(
+                         {ShuntingYard(operators, functions, root->children[0]->evaluate()->toString())}),
                  derive(operators, functions, wrt, root->children[0])});
 
-        TreeNode * toRet = ShuntingYard(operators, functions, toSanitize->evaluate()->toString());
+        TreeNode *toRet = ShuntingYard(operators, functions, toSanitize->evaluate()->toString());
         delete toSanitize;
         return toRet;
     }
@@ -271,7 +278,9 @@ TreeNode *derive(unordered_map<string, Operator> operators, unordered_map<string
                          derive(operators, functions, wrt, opRoot->children[1])});
 
                 Operator *subOp = operators.find("-")->second.setOperands({multiplyOp1, multiplyOp2});
-                Operator *powOp = operators.find("^")->second.setOperands({ShuntingYard(operators, functions,opRoot->children[1]->evaluate()->toString()), new Expression("2")});
+                Operator *powOp = operators.find("^")->second.setOperands(
+                        {ShuntingYard(operators, functions, opRoot->children[1]->evaluate()->toString()),
+                         new Expression("2")});
                 Operator *divOp = operators.find("/")->second.setOperands({subOp, powOp});
                 return divOp;
             }

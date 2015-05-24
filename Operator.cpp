@@ -25,7 +25,7 @@ Expression *Operator::evaluate() {
             Operator *opCheck = dynamic_cast<Operator *>(children[i]);
 
             //TODO: Fix this dirty hack
-            if(opCheck != nullptr && toString() == opCheck->toString() && toString() == "/"){
+            if (opCheck != nullptr && toString() == opCheck->toString() && toString() == "/") {
                 s += "(" + children[i]->evaluate()->toString() + ") " + representation + " ";
                 continue;
             }
@@ -41,7 +41,7 @@ Expression *Operator::evaluate() {
             Operator *opCheck = dynamic_cast<Operator *>(children[i]);
 
             //TODO: Fix this dirty hack
-            if(opCheck != nullptr && toString() == opCheck->toString() && toString() == "/"){
+            if (opCheck != nullptr && toString() == opCheck->toString() && toString() == "/") {
                 s += "(" + children[i]->evaluate()->toString() + ")";
                 continue;
             }
